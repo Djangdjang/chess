@@ -1,193 +1,178 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
+<meta charset="UTF-8" />
+<title>Échecs temps réel simple</title>
 <style>
-
-body {
-  background-color: #2c3e50;
-  color: #ecf0f1;
-  margin : 10;
-  padding: 20px 0;
-}
-
-h1 {
-  text-align: center;
-  letter-spacing: 4px;
-  margin-bottom: 40px;
-  text-shadow: 4px 4px 5px #1abc9c;
-}
-
-.ligne {
-  display: flex;
-  gap: 0;
-  justify-content: center;
-}
-
-.case {
-  flex: 1;
-  text-align: center;
-  line-height: 80px;
-  height: 80px;
-  border: none;
-  font-size: 50px;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  box-shadow: inset 0 0 6px rgba(0,0,0,0.15);
-}
-
-.case.beige {
-  background-color: #f0d9b5;
-}
-
-.case.vert {
-  background-color: #b58863;
-}
-
-.case.beige:hover {
-  background-color: #f7e6c9;
-  transform: scale(1.02);
-}
-
-.case.vert:hover {
-  background-color: #a57a58;
-  transform: scale(1.02);
-}
-
-.selectionnee {
-  border: 1px solid #e74c3c;
-  transform: scale(1.1);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.deplacement::after {
-  content: "";
-  display: block;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background-color: #3498dbcc;
-  margin: 8px auto 0;
-  box-shadow: 0 0 10px #3498dbcc;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.deplacement:hover::after {
-  background-color: #2980b9;
-}
-
+  body { font-family: Arial, sans-serif; background: #2c3e50; color: #ecf0f1; margin: 0; padding: 0; }
+  h1 { text-align: center; margin: 20px 0; }
+  .ligne { display: flex; justify-content: center; }
+  .case {
+    width: 60px; height: 60px;
+    font-size: 40px; text-align: center; line-height: 60px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .beige { background-color: #f0d9b5; }
+  .vert { background-color: #b58863; }
+  .selectionnee { border: 3px solid red; }
+  .deplacement::after {
+    content: "";
+    display: block;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background-color: #3498dbcc;
+    margin: 4px auto 0;
+  }
 </style>
 </head>
-
 <body>
-<h1>Jeu d'echecs simplifiées</h1>
+
+<h1>Échecs temps réel simple</h1>
+
+<div id="plateau"></div>
 
 <script>
-let val = 0;
+const plateauDiv = document.getElementById('plateau');
+let boardState = [
+  ["", "", "", "", "", "", "", ""],
+  ["♟","♟","♟","♟","♟","♟","♟","♟"],
+  ["", "", "", "", "", "", "", ""],
+  ["", "", "", "", "", "", "", ""],
+  ["", "", "", "", "", "", "", ""],
+  ["", "", "", "", "", "", "", ""],
+  ["♙","♙","♙","♙","♙","♙","♙","♙"],
+  ["", "", "", "", "", "", "", ""]
+];
 let selection = null;
 
-for (let lig = 0; lig < 8;lig++)
-{
-	val++;
-	const ligne = document.createElement('div');
+function creerPlateau() {
+  plateauDiv.innerHTML = '';
+  for (let lig = 0; lig < 8; lig++) {
+    const ligne = document.createElement('div');
     ligne.className = 'ligne';
-    for (let col = 0; col < 8;col++)
-    {
-    	val++;
-    	const bouton = document.createElement('button');
-        bouton.className = "case " + (val % 2 === 0 ? "beige" : "vert");
-        ligne.appendChild(bouton);
-        
-        if (lig == 1) bouton.innerText =  "♟";
-        if (lig == 6) bouton.innerText =  "♙";
-        
-        bouton.dataset.lig = lig;
-		bouton.dataset.col = col;
-        bouton.dataset.compteur = 0;
-        
-        bouton.addEventListener("click", function(){
-        
-        if (selection === null && this.innerText !== ''){
-        	selection = this;
-			this.classList.add("selectionnee");
-            montrer_deplacement(this);
-        }else if(selection){
-        	if (this.classList.contains("deplacement")){
-        		this.innerText = selection.innerText;
-            	selection.innerText = "";
-            	selection.classList.remove("selectionnee");
-            	selection = null;
-            	effacer_deplacement();
-            } else if (this === selection){
-            	this.classList.remove("selectionnee");
-            	selection = null;
-            	effacer_deplacement();
-        	} else {
-	            selection.classList.remove("selectionnee");
-       	    	selection = null;
-            	effacer_deplacement();
-        	}
-          }
-        });
-        
-
+    for (let col = 0; col < 8; col++) {
+      const caseBtn = document.createElement('button');
+      caseBtn.className = "case " + ((lig + col) % 2 === 0 ? 'beige' : 'vert');
+      caseBtn.textContent = boardState[lig][col];
+      caseBtn.dataset.lig = lig;
+      caseBtn.dataset.col = col;
+      caseBtn.addEventListener('click', () => clickCase(lig, col));
+      ligne.appendChild(caseBtn);
     }
-    document.body.appendChild(ligne);
+    plateauDiv.appendChild(ligne);
+  }
 }
 
-function montrer_deplacement(bouton){
-	let lig = parseInt(bouton.dataset.lig);
-    let col = parseInt(bouton.dataset.col);
-    
-    let pion = bouton.innerText;
-    
-    let lig_depart;
-    
-    let direction = 0;
-    if (pion === "♙") {
-    direction = -1;
-    lig_depart = 6;
-  	} else if (pion === "♟") {
-    direction = 1;
-    lig_depart = 1;
-  	}
-    
-    const lig1 = lig + direction;
-    const lig2 = lig + 2*direction;
-    
-	const case1 = document.querySelector(`[data-lig='${lig1}'][data-col='${col}']`);
-    if (case1 && case1.innerText === '')
-    {
-    	case1.classList.add('deplacement');
+function clickCase(lig, col) {
+  if (selection === null) {
+    if (boardState[lig][col] !== '') {
+      selection = { lig, col };
+      montrerDeplacement(selection.lig, selection.col);
     }
-	const case2 = document.querySelector(`[data-lig='${lig2}'][data-col='${col}']`);
-    if (lig === lig_depart){
-    	case2.classList.add('deplacement');
+  } else {
+    if (deplacementsPossibles.some(d => d.lig === lig && d.col === col)) {
+      // Jouer le coup
+      boardState[lig][col] = boardState[selection.lig][selection.col];
+      boardState[selection.lig][selection.col] = '';
+      selection = null;
+      deplacementsPossibles = [];
+      creerPlateau();
+      sendState();
+    } else if (selection.lig === lig && selection.col === col) {
+      // Désélectionner
+      selection = null;
+      deplacementsPossibles = [];
+      creerPlateau();
+    } else {
+      // Autre clic, reset
+      selection = null;
+      deplacementsPossibles = [];
+      creerPlateau();
     }
-    
-    const case3 = document.querySelector(`[data-lig='${lig1}'][data-col='${col+1}']`);
-    const case4 = document.querySelector(`[data-lig='${lig1}'][data-col='${col-1}']`);
-    
-    if (case3 && case3.innerText !== pion && case3.innerText !== '')
-    {
-        case3.classList.add(
-        'deplacement');
-    }
-    if (case4 && case4.innerText !== pion && case4.innerText !== '')
-    {
-        case4.classList.add('deplacement');
-    }
-
+  }
+  mettreAJourSelection();
 }
 
-function effacer_deplacement(){
-	const cases = document.querySelectorAll(".deplacement");
-	for (let i = 0; i < cases.length; i++) {
-  		let uneCase = cases[i];
-  		uneCase.classList.remove("deplacement");
-   }
+let deplacementsPossibles = [];
+
+function montrerDeplacement(lig, col) {
+  deplacementsPossibles = [];
+  const piece = boardState[lig][col];
+  let direction = 0;
+  let ligDepart = -1;
+  if (piece === '♙') { direction = -1; ligDepart = 6; }
+  else if (piece === '♟') { direction = 1; ligDepart = 1; }
+  else return; // Seulement pions pour l'instant
+
+  // déplacement simple
+  let lig1 = lig + direction;
+  if (lig1 >=0 && lig1 < 8 && boardState[lig1][col] === '') {
+    deplacementsPossibles.push({ lig: lig1, col: col });
+
+    // double déplacement si pion à la position départ
+    let lig2 = lig + 2*direction;
+    if (lig === ligDepart && boardState[lig2][col] === '') {
+      deplacementsPossibles.push({ lig: lig2, col: col });
+    }
+  }
+  // captures diagonales
+  for (let dc of [-1,1]) {
+    let c = col + dc;
+    if (c >=0 && c <8 && lig1 >=0 && lig1 <8) {
+      let cible = boardState[lig1][c];
+      if (cible !== '' && cible !== piece) {
+        deplacementsPossibles.push({ lig: lig1, col: c });
+      }
+    }
+  }
+  creerPlateau();
+  mettreAJourSelection();
 }
 
+function mettreAJourSelection() {
+  const cases = document.querySelectorAll('.case');
+  cases.forEach(c => {
+    const lig = parseInt(c.dataset.lig);
+    const col = parseInt(c.dataset.col);
+    c.classList.remove('selectionnee');
+    c.classList.remove('deplacement');
+    if (selection && lig === selection.lig && col === selection.col) {
+      c.classList.add('selectionnee');
+    }
+    if (deplacementsPossibles.some(d => d.lig === lig && d.col === col)) {
+      c.classList.add('deplacement');
+    }
+  });
+}
+
+function sendState() {
+  fetch('save_game.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'boardState=' + encodeURIComponent(JSON.stringify(boardState))
+  });
+}
+
+function listenForMoves() {
+  fetch('get_game.php')
+    .then(response => response.json())
+    .then(serverState => {
+      // Si différent de l'état local, on met à jour
+      if (JSON.stringify(serverState) !== JSON.stringify(boardState)) {
+        boardState = serverState;
+        selection = null;
+        deplacementsPossibles = [];
+        creerPlateau();
+      }
+      listenForMoves();
+    })
+    .catch(() => setTimeout(listenForMoves, 3000));
+}
+
+creerPlateau();
+listenForMoves();
 </script>
-
 
 </body>
 </html>
